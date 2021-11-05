@@ -5,6 +5,7 @@
 
 #include <Application.hpp>
 #include <Audio/decoder/Decoder.hpp>
+#include <purefs/filesystem_paths.hpp>
 #include <atomic>
 
 namespace gui
@@ -14,7 +15,7 @@ namespace gui
         namespace window
         {
             inline constexpr auto track_info_window = "Track Info";
-            inline constexpr auto all_songs_window = "All Songs";
+            inline constexpr auto all_songs_window  = "All Songs";
         }; // namespace window
     };     // namespace name
 };         // namespace gui
@@ -27,6 +28,8 @@ namespace app
     }
 
     inline constexpr auto name_music_player = "ApplicationMusicPlayer";
+
+    inline auto musicPlayerFilesPath = purefs::createPath(purefs::dir::getUserDiskPath(), "music").string();
 
     class ApplicationMusicPlayer : public Application
     {

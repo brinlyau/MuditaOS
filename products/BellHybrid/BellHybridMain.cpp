@@ -15,7 +15,9 @@
 
 // modules
 #include <module-db/Databases/EventsDB.hpp>
+#include <module-db/Databases/MultimediaFilesDB.hpp>
 #include <module-db/Interface/AlarmEventRecord.hpp>
+#include <module-db/Interface/MultimediaFilesRecord.hpp>
 
 // services
 #include <appmgr/ApplicationManager.hpp>
@@ -28,6 +30,7 @@
 #include <service-eink/ServiceEink.hpp>
 #include <service-gui/ServiceGUI.hpp>
 #include <service-time/ServiceTime.hpp>
+#include <service-fileindexer/ServiceFileIndexer.hpp>
 
 #include <Application.hpp>
 #include <ApplicationLauncher.hpp>
@@ -68,6 +71,7 @@ int main()
 
     std::vector<std::unique_ptr<sys::BaseServiceCreator>> systemServices;
     systemServices.emplace_back(sys::CreatorFor<EventManager>([]() { return dumpLogs(); }));
+    systemServices.emplace_back(sys::CreatorFor<service::ServiceFileIndexer>());
     systemServices.emplace_back(sys::CreatorFor<ServiceDB>());
     systemServices.emplace_back(sys::CreatorFor<service::Audio>());
     systemServices.emplace_back(sys::CreatorFor<ServiceDesktop>());

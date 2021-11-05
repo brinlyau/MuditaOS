@@ -5,6 +5,7 @@
 
 #include <Application.hpp>
 #include <common/models/AbstractAudioModel.hpp>
+#include <purefs/filesystem_paths.hpp>
 
 namespace gui::window::name
 {
@@ -19,6 +20,9 @@ namespace app
         class BGSoundsPlayer;
     }
     inline constexpr auto applicationBellBackgroundSoundsName = "ApplicationBellBackgroundSounds";
+
+    inline auto backgroundSoundsFilesPath =
+        purefs::createPath(purefs::dir::getCurrentOSPath(), "assets/audio/bell/bg_sounds").string();
 
     class ApplicationBellBackgroundSounds : public Application
     {

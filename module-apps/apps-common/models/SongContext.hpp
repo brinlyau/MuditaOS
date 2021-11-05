@@ -4,7 +4,7 @@
 
 #include <Audio/decoder/Decoder.hpp>
 
-namespace app::music_player
+namespace app::music
 {
 
     enum class SongState
@@ -28,4 +28,4 @@ namespace app::music_player
         bool isValid() const;
     };
 
-} // namespace app::music_player
+} // namespace app::music

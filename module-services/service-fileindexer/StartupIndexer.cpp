@@ -20,7 +20,8 @@ namespace service::detail
         using namespace std::string_literals;
 
         // List of initial dirs for scan
-        const std::vector<std::string> start_dirs{purefs::dir::getUserDiskPath() / "music"};
+        const std::vector<std::string> start_dirs{purefs::dir::getCurrentOSPath() / "assets/audio/bell/bg_sounds",
+                                                  purefs::dir::getUserDiskPath() / "music"};
         // Lock file name
         const auto lock_file_name = purefs::dir::getUserDiskPath() / ".directory_is_indexed";
         // Time for indexing first unit
