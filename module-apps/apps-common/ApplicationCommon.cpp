@@ -19,6 +19,7 @@
 #include <log/debug.hpp>                 // for DEBUG_APPLI...
 #include <log/log.hpp>                   // for LOG_INFO
 #include "messages/AppMessage.hpp"       // for AppSwitchMe...
+#include "messages/AppSwitchWindowPopupMessage.hpp"
 #include "service-appmgr/Controller.hpp" // for Controller
 #include "actions/AlarmClockStatusChangeParams.hpp"
 #include <service-cellular-api>
@@ -44,20 +45,6 @@
 #include <service-db/agents/settings/SystemSettings.hpp>
 #include <service-audio/AudioServiceAPI.hpp> // for GetOutputVolume
 
-#include <popups/AlarmPopup.hpp>
-#include <popups/VolumeWindow.hpp>
-#include <popups/HomeModesWindow.hpp>
-#include <popups/TetheringPhoneModePopup.hpp>
-#include <popups/TetheringConfirmationPopup.hpp>
-#include <popups/PowerOffWindow.hpp>
-#include <popups/presenter/PowerOffPresenter.hpp>
-#include <popups/lock-popups/PhoneLockedWindow.hpp>
-#include <popups/lock-popups/PhoneLockedInfoWindow.hpp>
-#include <popups/lock-popups/PhoneLockInputWindow.hpp>
-#include <popups/lock-popups/PhoneLockChangeInfoWindow.hpp>
-#include <popups/lock-popups/SimLockInputWindow.hpp>
-#include <popups/lock-popups/SimInfoWindow.hpp>
-#include <popups/lock-popups/SimNotReadyWindow.hpp>
 #include <popups/data/PopupData.hpp>
 #include <popups/data/PopupRequestParams.hpp>
 #include <popups/data/AlarmPopupRequestParams.hpp>
@@ -290,11 +277,14 @@ namespace app
         }
     }
 
+    /// wait we have it already in some class
+    /// BUT SHIT IT'S NOT PROPAGATED :(((
     void ApplicationCommon::switchWindowPopup(const std::string &windowName,
+                                              const gui::popup::Disposition &d,
                                               std::unique_ptr<gui::SwitchData> data,
                                               SwitchReason reason)
     {
-        bus.sendUnicast(std::make_shared<AppSwitchWindowMessage>(windowName, std::move(data), reason, true),
+        bus.sendUnicast(std::make_shared<AppSwitchWindowPopupMessage>(windowName, std::move(data), reason, d),
                         this->GetName());
     }
 
@@ -327,7 +317,6 @@ namespace app
     {
         auto window = windowsStack().get(topWindow);
         if (window) {
-            // TODO some handle to debug refreshes...
             auto msg = std::make_shared<AppRefreshMessage>(mode, *window);
             bus.sendUnicast(msg, this->GetName());
         }
@@ -464,7 +453,7 @@ namespace app
 
             if (getState() == State::ACTIVE_FORGROUND && windowsStack().isEmpty()) {
                 LOG_ERROR("OnAction application switch with no window provided. Fallback to default mainWindow.");
-                setActiveWindow(gui::name::window::main_window);
+                pushWindow(default_window);
             }
 
             return result;
@@ -567,13 +556,13 @@ namespace app
             const auto closeReason = msg->getReason() == SwitchReason::PhoneLock
                                          ? gui::Window::CloseReason::PhoneLock
                                          : gui::Window::CloseReason::WindowSwitch;
-            // TODO shouldn't we call it i.e. when we drop it in between? :) yes we should - we should do it in
-            // windowsStack THIS should be mayor change to test tough
             getCurrentWindow()->onClose(closeReason);
         }
 
         LOG_DEBUG("Current window: %s vs %s", getCurrentWindow()->getName().c_str(), msg->getWindowName().c_str());
-        setActiveWindow(msg->getWindowName());
+        // THIS IS IN TEST!
+        const auto &[name, data] = msg->getSwitchData();
+        pushWindow(name, data);
         getCurrentWindow()->handleSwitchData(switchData.get());
 
         if (handleUpdateTextRefresh(switchData.get())) {
@@ -581,11 +570,9 @@ namespace app
         }
         getCurrentWindow()->onBeforeShow(msg->getCommand(), switchData.get());
 
-        /// TODO this is hack
-        /// if we are not requesting for popup
-        /// and we cant handle next popup - just refresh the window
+        /// This is kind of gentle hack on our stateless Application Window management switching
+        /// if we are not requesting for popup and we cant handle next popup - just refresh the window
         /// else -> popup will refresh it for us
-        // /if ( not msg->toPopupRequest() ) {
         if (not tryShowPopup()) {
             LOG_INFO("REFRESHIG!");
             refreshWindow(gui::RefreshModes::GUI_REFRESH_DEEP);
@@ -593,12 +580,9 @@ namespace app
         else {
             LOG_INFO("REFRESHIG we LOST REFRESH AS WE WILL REFRESH WITH POPUP");
         }
-        //{
-        //}
         return sys::msgHandled();
     }
 
-    /// TODO this should be in window
     bool ApplicationCommon::handleUpdateTextRefresh(gui::SwitchData *data)
     {
         auto ret = dynamic_cast<gui::SwitchSpecialChar *>(data);
@@ -751,11 +735,6 @@ namespace app
         return sys::ReturnCodes::Success;
     }
 
-    void ApplicationCommon::setActiveWindow(const std::string &windowName)
-    {
-        pushWindow(windowName);
-    }
-
     bool ApplicationCommon::adjustCurrentVolume(const int step)
     {
         return AudioServiceAPI::KeyPressed(this, step);
@@ -822,93 +801,6 @@ namespace app
         sender->bus.sendUnicast(msg, application);
     }
 
-    /// TODO remove from here, but add in register blueprint? (as a class then)
-    void ApplicationCommon::attachPopups(const std::vector<gui::popup::ID> &popupsList)
-    {
-        using namespace gui::popup;
-        for (auto popup : popupsList) {
-            switch (popup) {
-            case ID::Volume:
-                windowsFactory.attach(window::volume_window, [](ApplicationCommon *app, const std::string &name) {
-                    return std::make_unique<gui::VolumeWindow>(app, window::volume_window);
-                });
-                break;
-            case ID::Tethering:
-            case ID::TetheringPhoneModeChangeProhibited:
-                windowsFactory.attach(window::tethering_confirmation_window,
-                                      [](ApplicationCommon *app, const std::string &name) {
-                                          return std::make_unique<gui::TetheringConfirmationPopup>(
-                                              app, window::tethering_confirmation_window);
-                                      });
-                windowsFactory.attach(window::tethering_phonemode_change_window,
-                                      [](ApplicationCommon *app, const std::string &name) {
-                                          return std::make_unique<gui::TetheringPhoneModePopup>(
-                                              app, window::tethering_phonemode_change_window);
-                                      });
-                break;
-            case ID::PhoneModes:
-                windowsFactory.attach(window::phone_modes_window, [](ApplicationCommon *app, const std::string &name) {
-                    return std::make_unique<gui::HomeModesWindow>(app, window::phone_modes_window);
-                });
-                break;
-            case ID::Brightness:
-                break;
-            case ID::PhoneLock:
-            case ID::PhoneLockInput:
-            case ID::PhoneLockInfo:
-            case ID::PhoneLockChangeInfo:
-                windowsFactory.attach(window::phone_lock_window, [](ApplicationCommon *app, const std::string &name) {
-                    return std::make_unique<gui::PhoneLockedWindow>(app, window::phone_lock_window);
-                });
-                windowsFactory.attach(
-                    window::phone_lock_info_window, [](ApplicationCommon *app, const std::string &name) {
-                        return std::make_unique<gui::PhoneLockedInfoWindow>(app, window::phone_lock_info_window);
-                    });
-                windowsFactory.attach(
-                    window::phone_lock_input_window, [](ApplicationCommon *app, const std::string &name) {
-                        return std::make_unique<gui::PhoneLockInputWindow>(app, window::phone_lock_input_window);
-                    });
-                windowsFactory.attach(window::phone_lock_change_info_window,
-                                      [](ApplicationCommon *app, const std::string &name) {
-                                          return std::make_unique<gui::PhoneLockChangeInfoWindow>(
-                                              app, window::phone_lock_change_info_window);
-                                      });
-                windowsFactory.attach(window::power_off_window, [](ApplicationCommon *app, const std::string &name) {
-                    auto presenter = std::make_unique<gui::PowerOffPresenter>(app);
-                    return std::make_unique<gui::PowerOffWindow>(app, std::move(presenter));
-                });
-                break;
-            case ID::SimLock:
-            case ID::SimInfo:
-            case ID::SimNotReady:
-                windowsFactory.attach(window::sim_unlock_window, [](ApplicationCommon *app, const std::string &name) {
-                    return std::make_unique<gui::SimLockInputWindow>(app, window::sim_unlock_window);
-                });
-                windowsFactory.attach(window::sim_info_window, [](ApplicationCommon *app, const std::string &name) {
-                    return std::make_unique<gui::SimInfoWindow>(app, window::sim_info_window);
-                });
-                windowsFactory.attach(
-                    window::sim_not_ready_window, [](ApplicationCommon *app, const std::string &name) {
-                        return std::make_unique<gui::SimNotReadyWindow>(app, window::sim_not_ready_window);
-                    });
-                break;
-            case ID::Alarm:
-                windowsFactory.attach(window::alarm_window, [](ApplicationCommon *app, const std::string &name) {
-                    auto presenter = std::make_shared<popup::AlarmPopupPresenter>(app);
-                    return std::make_unique<gui::AlarmPopup>(app, window::alarm_window, presenter);
-                });
-            default:
-                break;
-            }
-        }
-    }
-
-    // TODO consider here: Application->inPopup(true); and ->(false) when exit...
-    // problem is: we do not know when we exit POPUP :D :D :D this is sooo fucked up
-    // this is because we enter the window tree and do not care ^^ TODO switch currentWindow
-    // to something more descriptive (like WindowNode) and maybe add this information there
-    // but... we already needed it ; we have SwitchReason which essentailly is for that
-    /// THIS FUNCTION BOTH: handles creation of popup AND updates popup if required
     void ApplicationCommon::actionPopupPush(std::unique_ptr<gui::SwitchData> params)
     {
         auto rdata = dynamic_cast<gui::PopupRequestParams *>(params.get());
@@ -937,20 +829,11 @@ namespace app
 
     bool ApplicationCommon::tryShowPopup()
     {
-        /// TODO here we have shitty filter :) if we are on the very
-        /// same popup we want to handle now and want to switch window we have whole shitty mess
-        /// if we just want to update popup? it will be kind of ok
-        /// Disposition->stacks() ???
-        /// TODO if in popup -> then we have higher priority then Lock window
-        ///      TODO mark what popup we are in - so that we would be able to filter out when we need it
-        ///      TODO filter - if we are on the same window, we cant show the popup
-        ///                    or we can show the popup - as we might want to update it :| oh well if the same -> then
-        ///                    we switch window and do not give a fuck -> handle in MVP not here
-        /// TODO TODO TODO --- HERE pass windowsStack to filter! SEE INFO IN LEFT
         auto request = windowsPopupQueue->popRequest(getPopupFilter());
         if (request) {
             auto popup = std::string(magic_enum::enum_name(request->getPopupParams().getPopupId()));
             LOG_DEBUG("handling popup: %s", popup.c_str());
+            /// request handle actually switches window to popup window
             auto retval = request->handle();
             if (not retval) {
                 LOG_ERROR("Popup %s handling failure, please check registered blueprint!", popup.c_str());
@@ -982,7 +865,7 @@ namespace app
     }
 
     /// TODO change how we handle "" actually ... how do we handle "" in the first place?
-    void ApplicationCommon::pushWindow(const std::string &newWindow)
+    void ApplicationCommon::pushWindow(const std::string &newWindow, const gui::popup::Disposition &d)
     {
         // handle if window was already on
         LOG_INFO("App: %s window %s request", GetName().c_str(), newWindow.c_str());
@@ -996,7 +879,7 @@ namespace app
             return;
         }
         LOG_INFO("CREATE WINDOW FOR STACK: %s", newWindow.c_str());
-        windowsStack().push(newWindow, windowsFactory.build(this, newWindow));
+        windowsStack().push(newWindow, windowsFactory.build(this, newWindow), d);
         windowsStack().logStack(std::cout);
     }
 
@@ -1010,11 +893,9 @@ namespace app
         if (windowsStack().isEmpty()) {
             windowsStack().push(default_window, windowsFactory.build(this, default_window));
         }
-        /// TODO handle nullptr? if not found on stack -> return default
         return windowsStack().get(*windowsStack().get(topWindow));
     }
 
-    /// TODO test it!
     bool ApplicationCommon::isCurrentWindow(const std::string &windowName) const noexcept
     {
         const auto window = windowsStack().get(windowName);

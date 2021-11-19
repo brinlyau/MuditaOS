@@ -69,9 +69,6 @@ namespace app
         }
 
         createUserInterface();
-
-        setActiveWindow(calllog::settings::MainWindowStr);
-
         return ret;
     }
 

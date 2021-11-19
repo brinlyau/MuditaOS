@@ -108,10 +108,14 @@ namespace app
     {
         for (const auto &el : stack) {
             out << "logStack "
-                << "name: " << el.name.c_str() << " "
-                << "type: " << magic_enum::enum_name(el.disposition.windowtype) << " "
-                << "popup::ID: " << magic_enum::enum_name(el.disposition.id) << " "
-                << "priority: " << magic_enum::enum_name(el.disposition.priority) << " " << std::endl;
+                << "name: " << el.name.c_str();
+            if (el.disposition.windowtype == gui::popup::Disposition::WindowType::Popup) {
+                out << " "
+                    << "type: " << magic_enum::enum_name(el.disposition.windowtype) << " "
+                    << "popup::ID: " << magic_enum::enum_name(el.disposition.id) << " "
+                    << "priority: " << magic_enum::enum_name(el.disposition.priority);
+            }
+            out << " " << std::endl;
         }
     }
 

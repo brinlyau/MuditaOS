@@ -37,7 +37,9 @@ namespace app
                     updateCurrentWindow(std::make_unique<gui::ModesPopupData>(mode, flightMode));
                 }
                 else {
-                    switchWindowPopup(popupName, std::make_unique<gui::ModesPopupData>(mode, flightMode));
+                    switchWindowPopup(popupName,
+                                      popupParams->getDisposition(),
+                                      std::make_unique<gui::ModesPopupData>(mode, flightMode));
                 }
                 return true;
             });
@@ -57,13 +59,18 @@ namespace app
                     updateCurrentWindow(std::make_unique<gui::VolumePopupData>(volume, context));
                 }
                 else {
-                    switchWindowPopup(popupName, std::make_unique<gui::VolumePopupData>(volume, context));
+                    switchWindowPopup(popupName,
+                                      volumeParams->getDisposition(),
+                                      std::make_unique<gui::VolumePopupData>(volume, context));
                 }
                 return true;
             });
         popupBlueprint.registerBlueprint(
             ID::PhoneLock, [&](gui::popup::ID id, std::unique_ptr<gui::PopupRequestParams> & /*params*/) {
-                switchWindowPopup(gui::popup::resolveWindowName(id), nullptr, SwitchReason::PhoneLock);
+                switchWindowPopup(gui::popup::resolveWindowName(id),
+                                  gui::popup::popupDisposition(id, gui::popup::Disposition::Priority::Normal),
+                                  nullptr,
+                                  SwitchReason::PhoneLock);
                 return true;
             });
         auto phoneLockBlueprint = [&](gui::popup::ID id, std::unique_ptr<gui::PopupRequestParams> &params) {
@@ -79,6 +86,7 @@ namespace app
                                                                 params->getPopupId()});
             switchWindowPopup(
                 gui::popup::resolveWindowName(id),
+                popupParams->getDisposition(),
                 std::make_unique<locks::LockData>(popupParams->getLock(), popupParams->getPhoneLockInputTypeAction()));
             return true;
         };
@@ -90,6 +98,7 @@ namespace app
                 return false;
             }
             switchWindowPopup(gui::popup::resolveWindowName(id),
+                              popupParams->getDisposition(),
                               std::make_unique<locks::SimLockData>(popupParams->getLock(),
                                                                    popupParams->getSimInputTypeAction(),
                                                                    popupParams->getErrorCode()));
@@ -107,6 +116,7 @@ namespace app
                                                                     gui::popup::Disposition::WindowType::Popup,
                                                                     params->getPopupId()});
                 switchWindowPopup(gui::popup::resolveWindowName(id),
+                                  popupParams->getDisposition(),
                                   std::make_unique<gui::AlarmPopupRequestParams>(popupParams));
                 return true;
             });

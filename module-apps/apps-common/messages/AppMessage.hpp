@@ -4,6 +4,7 @@
 #pragma once
 
 #include "Common.hpp"
+#include "popups/Disposition.hpp"
 #include "SwitchData.hpp"
 #include "gui/input/InputEvent.hpp"
 #include "BaseAppMessage.hpp"
@@ -114,8 +115,6 @@ namespace app
 
     class AppSwitchWindowMessage : public AppMessage
     {
-        bool toPopup = false;
-
       protected:
         std::string window;
         std::string senderWindow;
@@ -134,21 +133,11 @@ namespace app
             : AppMessage(MessageType::AppSwitchWindow), window{window},
               senderWindow{senderWindow}, command{command}, reason{reason}, data{std::move(data)} {};
 
-        AppSwitchWindowMessage(const std::string &window,
-                               std::unique_ptr<gui::SwitchData> data,
-                               SwitchReason reason = SwitchReason::SwitchRequest,
-                               bool toPopup        = false)
-            : AppSwitchWindowMessage(
-                  window, "", std::forward<decltype(data)>(data), gui::ShowMode::GUI_SHOW_INIT, reason)
-        {
-            this->toPopup = toPopup;
-        }
-
         virtual ~AppSwitchWindowMessage() = default;
 
-        [[nodiscard]] bool toPopupRequest() const
+        [[nodiscard]] virtual bool toPopupRequest() const
         {
-            return toPopup;
+            return false;
         }
 
         const std::string &getWindowName() const
@@ -171,6 +160,11 @@ namespace app
         {
             return data;
         };
+
+        virtual std::pair<const std::string &, gui::popup::Disposition> getSwitchData()
+        {
+            return {window, gui::popup::WindowDisposition};
+        }
     };
 
     class AppUpdateWindowMessage : public AppMessage

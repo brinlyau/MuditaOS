@@ -180,6 +180,10 @@ namespace app
         virtual sys::MessagePointer handleSwitchWindow(sys::Message *msgl);
         virtual sys::MessagePointer handleAppFocusLost(sys::Message *msgl);
         virtual void updateStatuses(gui::AppWindow *window) const;
+        void setDefaultWindow(const std::string &w)
+        {
+            default_window = w;
+        }
 
       private:
         std::unique_ptr<gui::popup::Filter> popupFilter;
@@ -213,6 +217,7 @@ namespace app
         std::list<std::unique_ptr<app::GuiTimer>> gui_timers;
         std::unordered_map<manager::actions::ActionId, OnActionReceived> receivers;
         void switchWindowPopup(const std::string &windowName,
+                               const gui::popup::Disposition &disposition,
                                std::unique_ptr<gui::SwitchData> data = nullptr,
                                SwitchReason reason                   = SwitchReason::SwitchRequest);
 
@@ -247,7 +252,6 @@ namespace app
 
         /// Method sending switch command for another window. It will switch window within active application.
         /// To switch windows between applications use app::manager::Controller::switchApplication
-        /// it will effectively trigger setActiveWindow and change on windows stack
         ///
         /// @param windowName name of window to show, only required parameter, our windows stack uses string names as
         /// id's
@@ -298,12 +302,6 @@ namespace app
         /// Deinitialization function.
         /// Called upon Application exit and/or termination request.
         sys::ReturnCodes DeinitHandler() override;
-
-        /// function to set active window for application
-        /// if none window is selected main window is used
-        /// if window name is "LastWindow" then previous window is selected
-        /// it modifies windows stack
-        void setActiveWindow(const std::string &windowName);
 
         /// see suspendInProgress documentation
         virtual void setSuspendFlag(bool val)
@@ -368,7 +366,7 @@ namespace app
         PopupBlueprintFactory popupBlueprint;
 
         /// Method used to attach popups windows to application
-        virtual void attachPopups(const std::vector<gui::popup::ID> &popupsList);
+        virtual void attachPopups(const std::vector<gui::popup::ID> &popupsList) = 0;
         /// TODO BELL: RENAMED FROM showPopup
         virtual void actionPopupPush(std::unique_ptr<gui::SwitchData> params);
         virtual bool tryShowPopup();
@@ -380,7 +378,7 @@ namespace app
       public:
         /// push window to the top of windows stack
         /// @ingrup AppWindowStack
-        void pushWindow(const std::string &newWindow);
+        void pushWindow(const std::string &newWindow, const gui::popup::Disposition &d = gui::popup::WindowDisposition);
         /// getter for previous window name
         /// @ingrup AppWindowStack
         std::optional<std::string> getPrevWindow(uint32_t count = 1) const;

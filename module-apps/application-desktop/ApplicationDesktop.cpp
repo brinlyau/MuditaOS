@@ -12,6 +12,7 @@
 #include "MmiPullWindow.hpp"
 #include "MmiPushWindow.hpp"
 #include "Reboot.hpp"
+#include "WindowsPopupFilter.hpp"
 
 #include <apps-common/messages/AppMessage.hpp>
 #include <AppWindow.hpp>
@@ -47,7 +48,8 @@ namespace app
                               std::make_shared<SIMConfiguration>(SIMConfiguration::DisplayMode::OnlyInactiveState));
         bus.channels.push_back(sys::BusChannel::ServiceDBNotifications);
 
-        // TODO TODO install here: blockAllPopups
+        getPopupFilter().addAppDependentFilter(
+            [&](const gui::PopupRequestParams & /*popupParams*/) { return !blockAllPopups; });
 
         addActionReceiver(app::manager::actions::ShowMMIResponse, [this](auto &&data) {
             switchWindow(app::window::name::desktop_mmi_pull, std::move(data));
