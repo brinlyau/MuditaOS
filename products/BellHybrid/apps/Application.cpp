@@ -17,9 +17,29 @@
 #include <common/windows/BellWelcomeWindow.hpp>
 #include <service-appmgr/Constants.hpp>
 #include <common/popups/BedtimeNotificationWindow.hpp>
+#include <apps-common/WindowsPopupFilter.hpp>
 
 namespace app
 {
+    Application::Application(std::string name,
+                             std::string parent,
+                             StatusIndicators statusIndicators,
+                             StartInBackground startInBackground,
+                             uint32_t stackDepth,
+                             sys::ServicePriority priority)
+        : ApplicationCommon(name, parent, statusIndicators, startInBackground, stackDepth, priority)
+    {
+        // TODO add in Application filter or bell - just remove from popup BluePrints for Bell
+        // App dependent filter is meant to be for apps - not for general Application
+        // also - consider list of filters instead of single filter
+        // this is in conflict with: ApplicationBellMain.cpp
+        getPopupFilter().addAppDependentFilter([&](const gui::PopupRequestParams &popupParams) {
+            return ((isCurrentWindow(gui::popup::resolveWindowName(gui::popup::ID::Reboot))) ||
+                    (isCurrentWindow(gui::popup::resolveWindowName(gui::popup::ID::PowerOff))) ||
+                    (isCurrentWindow(gui::BellTurnOffWindow::name)));
+        });
+    }
+
     void Application::attachPopups(const std::vector<gui::popup::ID> &popupsList)
     {
         using namespace gui::popup;
@@ -71,13 +91,6 @@ namespace app
                 break;
             }
         }
-    }
-
-    bool Application::isPopupPermitted(gui::popup::ID) const
-    {
-        return not((isCurrentWindow(gui::popup::resolveWindowName(gui::popup::ID::Reboot))) ||
-                   (isCurrentWindow(gui::popup::resolveWindowName(gui::popup::ID::PowerOff))) ||
-                   (isCurrentWindow(gui::BellTurnOffWindow::name)));
     }
 
     sys::MessagePointer Application::handleKBDKeyEvent(sys::Message *msgl)

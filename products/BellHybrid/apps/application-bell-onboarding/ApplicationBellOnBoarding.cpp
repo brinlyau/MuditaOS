@@ -174,9 +174,11 @@ namespace app
 
         informationPromptTimer.stop();
 
+        // TODO gerPrevWindow is removed for good reasons :)
+        // this has to be fixed with @Przemek
         auto selectedWindowCondition =
             getCurrentWindow()->getName() == gui::window::name::informationOnBoardingWindow &&
-            msg->getWindowName() == getPrevWindow() &&
+            // msg->getWindowName() == getPrevWindow() &&
             msg->getSenderWindowName() == gui::window::name::informationOnBoardingWindow;
 
         if (selectedWindowCondition && informationState == OnBoarding::InformationStates::DeepClickWarningInfo) {
@@ -221,7 +223,8 @@ namespace app
             informationState == OnBoarding::InformationStates::DeepClickWarningInfo) {
             informationState = OnBoarding::InformationStates::DeepClickCorrectionInfo;
 
-            displayInformation(getPrevWindow());
+            // TODO TODO TODO
+            // displayInformation(getPrevWindow());
             informationState = OnBoarding::InformationStates::RotateInfo;
             return true;
         }

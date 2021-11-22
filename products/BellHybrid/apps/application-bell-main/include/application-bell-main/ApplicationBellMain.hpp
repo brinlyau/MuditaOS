@@ -43,7 +43,6 @@ namespace app
         bool blockAllPopups = false;
 
         bool isPopupPermitted([[maybe_unused]] gui::popup::ID popupId) const;
-        void showPopup(gui::popup::ID id, const gui::PopupRequestParams *params) override;
         auto isHomeScreenFocused() -> bool;
         void onStart() override;
         sys::MessagePointer handleSwitchWindow(sys::Message *msgl) override;
