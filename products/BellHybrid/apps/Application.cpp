@@ -4,6 +4,7 @@
 #include <Application.hpp>
 
 #include <common/models/AlarmModel.hpp>
+#include <common/models/FrontlightModel.hpp>
 
 #include <audio/AudioMessage.hpp>
 #include <appmgr/messages/IdleTimerMessage.hpp>
@@ -16,6 +17,9 @@
 #include <common/windows/BellTurnOffWindow.hpp>
 #include <common/windows/BellWelcomeWindow.hpp>
 #include <service-appmgr/Constants.hpp>
+#include <service-evtmgr/service-evtmgr/KbdMessage.hpp>
+#include "messages/AppMessage.hpp" // for AppSwitchMe...
+
 #include <common/popups/BedtimeNotificationWindow.hpp>
 
 namespace app
@@ -86,6 +90,18 @@ namespace app
         return ApplicationCommon::handleKBDKeyEvent(msgl);
     }
 
+    sys::MessagePointer Application::handleInputEvent(sys::Message *msgl)
+    {
+        AppInputEventMessage *msg  = reinterpret_cast<AppInputEventMessage *>(msgl);
+        gui::InputEvent inputEvent = msg->getEvent();
+        if (inputEvent.isShortRelease(gui::KeyCode::KEY_RIGHT)) {
+            std::unique_ptr<bell_settings::FrontlightModel> frontlightModel;
+            // frontlightModel.get()->setBrightness(5);
+            LOG_INFO("-----------+++++++=----------");
+        }
+        return ApplicationCommon::handleInputEvent(msgl);
+    }
+
     sys::MessagePointer Application::handleApplicationSwitch(sys::Message *msgl)
     {
         onStart();
@@ -133,7 +149,9 @@ namespace app
 
     void Application::restartIdleTimer()
     {
-        bus.sendUnicast(std::make_shared<RestartIdleTimerMessage>(), service::name::appmgr);
+        if (idleTimerActiveFlag) {
+            bus.sendUnicast(std::make_shared<RestartIdleTimerMessage>(), service::name::appmgr);
+        }
     }
 
     void Application::stopIdleTimer()
@@ -143,4 +161,15 @@ namespace app
 
     void Application::updateStatuses(gui::AppWindow *window) const
     {}
+
+    void Application::reasumeIdleTimer()
+    {
+        startIdleTimer();
+        idleTimerActiveFlag = true;
+    }
+    void Application::suspendIdleTimer()
+    {
+        stopIdleTimer();
+        idleTimerActiveFlag = false;
+    }
 } // namespace app

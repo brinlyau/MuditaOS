@@ -109,6 +109,7 @@ namespace gui
                 return true;
             }
             else if (not presenter->isNapFinished() && key == KeyMap::Back) {
+                reinterpret_cast<app::Application *>(application)->reasumeIdleTimer();
                 presenter->endNap();
                 application->returnToPreviousWindow();
                 return true;

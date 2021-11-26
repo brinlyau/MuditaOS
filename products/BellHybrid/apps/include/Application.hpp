@@ -11,17 +11,20 @@ namespace app
     {
       public:
         using ApplicationCommon::ApplicationCommon;
+        void reasumeIdleTimer();
+        void suspendIdleTimer();
 
       protected:
+        void restartIdleTimer();
+        void stopIdleTimer();
         void attachPopups(const std::vector<gui::popup::ID> &popupsList) override;
         bool isPopupPermitted(gui::popup::ID popupId) const override;
         void startIdleTimer();
-        void restartIdleTimer();
-        void stopIdleTimer();
         void stopAllAudio();
 
       private:
         sys::MessagePointer handleKBDKeyEvent(sys::Message *msgl) override;
+        sys::MessagePointer handleInputEvent(sys::Message *msgl) override;
         sys::MessagePointer handleApplicationSwitch(sys::Message *msgl) override;
         sys::MessagePointer handleAppClose(sys::Message *msgl) override;
         sys::MessagePointer handleAppFocusLost(sys::Message *msgl) override;
@@ -30,5 +33,6 @@ namespace app
         virtual void onKeyPressed();
         virtual void onStart();
         virtual void onStop();
+        bool idleTimerActiveFlag = true;
     };
 } // namespace app
