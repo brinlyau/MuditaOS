@@ -65,7 +65,7 @@ namespace app::powernap
     }
     void PowerNapProgressPresenter::onNapAlarmFinished()
     {
-        audioModel.stop({});
+        audioModel.stopPlayedByThis({});
         getView()->napEnded();
     }
 
@@ -76,6 +76,11 @@ namespace app::powernap
     bool PowerNapProgressPresenter::isNapFinished()
     {
         return napFinished;
+    }
+
+    void PowerNapProgressPresenter::onBeforeShow()
+    {
+        getView()->setTimeFormat(timeModel->getTimeFormat());
     }
 
 } // namespace app::powernap

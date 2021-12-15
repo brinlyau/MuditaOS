@@ -96,7 +96,6 @@ namespace gui
         time = new BellStatusClock(body->firstBox);
         time->setMaximumSize(body->firstBox->getWidth(), body->firstBox->getHeight());
         time->setAlignment(Alignment(Alignment::Horizontal::Center, Alignment::Vertical::Top));
-        updateTime();
         body->firstBox->resizeItems();
 
         dimensionChangedCallback = [&](Item &, const BoundingBox &newDim) -> bool {
@@ -108,6 +107,8 @@ namespace gui
     void MeditationRunningWindow::onBeforeShow(ShowMode mode, SwitchData *data)
     {
         AppWindow::onBeforeShow(mode, data);
+        presenter->onBeforeShow();
+        updateTime();
 
         if (mode == ShowMode::GUI_SHOW_INIT) {
             playGong();
@@ -125,6 +126,7 @@ namespace gui
             return true;
         }
         if (inputEvent.isShortRelease(gui::KeyCode::KEY_RF)) {
+            reinterpret_cast<app::Application *>(application)->resumeIdleTimer();
             presenter->abandon();
             return true;
         }

@@ -3,6 +3,7 @@
 
 add_subdirectory(base64)
 add_subdirectory(date)
+add_subdirectory(reedgefs)
 add_subdirectory(fatfs)
 add_subdirectory(gsl)
 add_subdirectory(hash-library)
@@ -23,6 +24,7 @@ add_subdirectory(sml)
 add_subdirectory(taglib)
 add_subdirectory(tinyexpr)
 add_subdirectory(utz)
+add_subdirectory(dr_libs)
 
 if (${PROJECT_TARGET} STREQUAL "TARGET_RT1051")
     add_subdirectory(CrashDebug)

@@ -76,6 +76,7 @@ namespace gui
     void BGSoundsProgressWindow::onBeforeShow(ShowMode mode, SwitchData *data)
     {
         presenter->onBeforeShow();
+        updateTime();
 
         if (mode == ShowMode::GUI_SHOW_RETURN && presenter->isPaused()) {
             presenter->resume();
@@ -85,8 +86,8 @@ namespace gui
         if (data && typeid(*data) == typeid(BGSoundsSwitchData)) {
             auto *audioSwitchData = static_cast<BGSoundsSwitchData *>(data);
             audioContext          = audioSwitchData->getAudioContext();
-            title->setText(audioContext->getTags().title);
-            presenter->activate(audioContext->getTags());
+            title->setText(audioContext->getSound().tags.title);
+            presenter->activate(audioContext->getSound());
         }
     }
 
@@ -107,7 +108,6 @@ namespace gui
         progressBar = createProgress(vBox);
         timerText   = createTimer(body->lastBox);
         time        = createClock(body->firstBox);
-        updateTime();
         body->firstBox->resizeItems();
         vBox->resizeItems();
 

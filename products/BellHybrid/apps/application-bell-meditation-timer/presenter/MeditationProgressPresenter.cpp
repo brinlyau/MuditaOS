@@ -44,6 +44,7 @@ namespace app::meditation
 
     void MeditationProgressPresenter::start()
     {
+        reinterpret_cast<app::Application *>(app)->suspendIdleTimer();
         timer->reset(std::chrono::seconds(duration), std::chrono::seconds(interval));
         timer->start();
     }
@@ -67,10 +68,7 @@ namespace app::meditation
     void MeditationProgressPresenter::abandon()
     {
         timer->stop();
-        app::manager::Controller::sendAction(
-            app,
-            app::manager::actions::Launch,
-            std::make_unique<app::ApplicationLaunchData>(app::applicationBellMeditationTimerName));
+        app->switchWindow(gui::name::window::main_window);
     }
 
     void MeditationProgressPresenter::finish()
@@ -91,5 +89,10 @@ namespace app::meditation
         if (interval != emptyValue) {
             getView()->intervalReached();
         }
+    }
+
+    void MeditationProgressPresenter::onBeforeShow()
+    {
+        getView()->setTimeFormat(timeModel->getTimeFormat());
     }
 } // namespace app::meditation

@@ -290,8 +290,11 @@ sys::ReturnCodes ServiceCellular::SwitchPowerModeHandler(const sys::ServicePower
 void ServiceCellular::registerMessageHandlers()
 {
     phoneModeObserver->connect(this);
-    phoneModeObserver->subscribe(
-        [this](sys::phone_modes::PhoneMode mode) { connectionManager->onPhoneModeChange(mode); });
+    phoneModeObserver->subscribe([this](sys::phone_modes::PhoneMode mode) {
+        if (priv->simCard->isSimCardSelected()) {
+            connectionManager->onPhoneModeChange(mode);
+        }
+    });
     phoneModeObserver->subscribe([&](sys::phone_modes::Tethering tethering) {
         if (tethering == sys::phone_modes::Tethering::On) {
             priv->tetheringHandler->enable();
@@ -572,6 +575,11 @@ void ServiceCellular::registerMessageHandlers()
 
     connect(typeid(CellularSetConnectionFrequencyMessage), [&](sys::Message *request) -> sys::MessagePointer {
         return handleCellularSetConnectionFrequencyMessage(request);
+    });
+
+    connect(typeid(RetryPhoneModeChangeRequest), [&](sys::Message *request) -> sys::MessagePointer {
+        connectionManager->onPhoneModeChange(phoneModeObserver->getCurrentPhoneMode());
+        return sys::MessageNone{};
     });
 
     handle_CellularGetChannelMessage();
@@ -860,11 +868,6 @@ bool ServiceCellular::handle_cellular_priv_init()
     if (utils::toNumeric(settings->getValue(settings::Offline::connectionFrequency, settings::SettingsScope::Global),
                          interval)) {
         connectionManager->setInterval(std::chrono::minutes{interval});
-    }
-    if (!connectionManager->onPhoneModeChange(phoneModeObserver->getCurrentPhoneMode())) {
-        priv->state->set(State::ST::Failed);
-        LOG_ERROR("Failed to handle phone mode");
-        return false;
     }
     priv->state->set(State::ST::APNConfProcedure);
     return true;
@@ -1251,8 +1254,6 @@ bool ServiceCellular::handle_URCReady()
 {
     auto channel = cmux->get(CellularMux::Channel::Commands);
     bool ret     = true;
-
-    priv->requestNetworkTimeSettings();
 
     ret = ret && channel->cmd(at::AT::ENABLE_NETWORK_REGISTRATION_URC);
 
@@ -1744,22 +1745,63 @@ auto ServiceCellular::handleCellularAnswerIncomingCallMessage(CellularMessage *m
     return std::make_shared<CellularResponseMessage>(ret);
 }
 
+namespace
+{
+    constexpr auto translate(at::Result::Code code) -> CellularCallRequestGeneralError::ErrorType
+    {
+        switch (code) {
+        case at::Result::Code::ERROR:
+        case at::Result::Code::CME_ERROR:
+        case at::Result::Code::CMS_ERROR:
+            return CellularCallRequestGeneralError::ErrorType::Error;
+        case at::Result::Code::TIMEOUT:
+            return CellularCallRequestGeneralError::ErrorType::ModemTimeout;
+        case at::Result::Code::TOKENS:
+        case at::Result::Code::PARSING_ERROR:
+        case at::Result::Code::FULL_MSG_BUFFER:
+        case at::Result::Code::TRANSMISSION_NOT_STARTED:
+        case at::Result::Code::RECEIVING_NOT_STARTED:
+        case at::Result::Code::DATA_NOT_USED:
+        case at::Result::Code::CMUX_FRAME_ERROR:
+            return CellularCallRequestGeneralError::ErrorType::TransmissionError;
+        case at::Result::Code::OK:
+        case at::Result::Code::NONE:
+        case at::Result::Code::UNDEFINED:
+            return CellularCallRequestGeneralError::ErrorType::UndefinedError;
+        }
+        return CellularCallRequestGeneralError::ErrorType::UndefinedError;
+    }
+} // namespace
+
 auto ServiceCellular::handleCellularCallRequestMessage(CellularCallRequestMessage *msg)
     -> std::shared_ptr<CellularResponseMessage>
 {
     LOG_INFO("%s", __PRETTY_FUNCTION__);
     auto channel = cmux->get(CellularMux::Channel::Commands);
     if (channel == nullptr) {
+        LOG_WARN("commands channel not ready");
+        auto message = std::make_shared<CellularCallRequestGeneralError>(
+            CellularCallRequestGeneralError::ErrorType::ChannelNotReadyError);
+        bus.sendUnicast(message, ::service::name::appmgr);
         return std::make_shared<CellularResponseMessage>(false);
     }
     cellular::RequestFactory factory(
         msg->number.getEntered(), *channel, msg->callMode, Store::GSM::get()->simCardInserted());
 
     auto request = factory.create();
-
     CellularRequestHandler handler(*this);
     auto result = channel->cmd(request->command());
     request->handle(handler, result);
+    if (!result) {
+        log_last_AT_error(channel);
+    }
+    LOG_INFO("isHandled %d, %s", static_cast<int>(request->isHandled()), utils::enumToString(result.code).c_str());
+    if (!request->isHandled()) {
+        CellularCallRequestGeneralError::ErrorType errorType = translate(result.code);
+        auto message = std::make_shared<CellularCallRequestGeneralError>(errorType);
+        bus.sendUnicast(message, ::service::name::appmgr);
+    }
+
     return std::make_shared<CellularResponseMessage>(request->isHandled());
 }
 
@@ -1960,22 +2002,22 @@ auto ServiceCellular::handleCellularGetFirmwareVersionMessage(sys::Message *msg)
 auto ServiceCellular::handleEVMStatusMessage(sys::Message *msg) -> std::shared_ptr<sys::ResponseMessage>
 {
     using namespace bsp::cellular::status;
-    auto message = static_cast<sevm::StatusStateMessage *>(msg);
-        auto status_pin = message->state;
-        if (priv->modemResetHandler->handleStatusPinEvent(status_pin == value::ACTIVE)) {
-            return std::make_shared<CellularResponseMessage>(true);
-        }
+    auto message    = static_cast<sevm::StatusStateMessage *>(msg);
+    auto status_pin = message->state;
+    if (priv->modemResetHandler->handleStatusPinEvent(status_pin == value::ACTIVE)) {
+        return std::make_shared<CellularResponseMessage>(true);
+    }
 
-        if (status_pin == value::ACTIVE) {
-            if (priv->state->get() == State::ST::PowerUpProcedure) {
-                priv->state->set(State::ST::PowerUpInProgress); // and go to baud detect as usual
-            }
+    if (status_pin == value::ACTIVE) {
+        if (priv->state->get() == State::ST::PowerUpProcedure) {
+            priv->state->set(State::ST::PowerUpInProgress); // and go to baud detect as usual
         }
-        if (status_pin == value::INACTIVE) {
-            if (priv->state->get() == State::ST::PowerDownWaiting) {
-                priv->state->set(State::ST::PowerDown);
-            }
+    }
+    if (status_pin == value::INACTIVE) {
+        if (priv->state->get() == State::ST::PowerDownWaiting) {
+            priv->state->set(State::ST::PowerDown);
         }
+    }
     return std::make_shared<CellularResponseMessage>(true);
 }
 
@@ -2115,7 +2157,7 @@ auto ServiceCellular::handleNetworkStatusUpdateNotification(sys::Message *msg) -
 auto ServiceCellular::handleUrcIncomingNotification(sys::Message *msg) -> std::shared_ptr<sys::ResponseMessage>
 {
     // when handling URC, the CPU frequency does not go below a certain level
-    cpuSentinel->HoldMinimumFrequency(bsp::CpuFrequencyHz::Level_4);
+    cpuSentinel->HoldMinimumFrequency(bsp::CpuFrequencyMHz::Level_4);
     cmux->exitSleepMode();
     return std::make_shared<CellularResponseMessage>(true);
 }

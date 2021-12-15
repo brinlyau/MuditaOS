@@ -185,7 +185,7 @@ auto ServiceBluetooth::handle(message::bluetooth::SetStatus *msg) -> std::shared
     switch (newBtStatus.state) {
     case BluetoothStatus::State::On:
 
-        cpuSentinel->HoldMinimumFrequency(bsp::CpuFrequencyHz::Level_3);
+        cpuSentinel->HoldMinimumFrequency(bsp::CpuFrequencyMHz::Level_3);
         sendWorkerCommand(bluetooth::Command(bluetooth::Command::Type::PowerOn));
         bus.sendMulticast(
             std::make_shared<sys::bluetooth::BluetoothModeChanged>(sys::bluetooth::BluetoothMode::Enabled),
@@ -349,7 +349,7 @@ auto ServiceBluetooth::handle(message::bluetooth::DisconnectResult *msg) -> std:
 auto ServiceBluetooth::handle(message::bluetooth::ResponsePasskey *msg) -> std::shared_ptr<sys::Message>
 {
     auto passKey = msg->getPasskey();
-    bluetooth::GAP::respondPinCode(passKey);
+    bluetooth::GAP::respondPinCode(passKey, msg->getDevice());
     return sys::MessageNone{};
 }
 

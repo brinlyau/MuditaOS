@@ -17,6 +17,7 @@ target_sources(application-settings
         models/display-keypad/CategoriesModel.cpp
         models/display-keypad/QuotesModel.cpp
         models/display-keypad/DisplayModeModel.cpp
+        models/display-keypad/WallpaperOptionModel.cpp
         models/network/ApnSettingsModel.cpp
         models/network/NewApnModel.cpp
         models/network/SimContactsImportModel.cpp
@@ -47,7 +48,9 @@ target_sources(application-settings
         windows/SettingsMainWindow.cpp
         windows/advanced/AdvancedOptionsWindow.cpp
         windows/advanced/ColorTestWindow.cpp
+        windows/advanced/CPUModeTestWindow.cpp
         windows/advanced/InformationWindow.cpp
+        windows/advanced/TextImageColorWindow.cpp
         windows/advanced/UITestWindow.cpp
         windows/advanced/StatusBarImageTypeWindow.cpp
         windows/apps/AlarmClockWindow.cpp

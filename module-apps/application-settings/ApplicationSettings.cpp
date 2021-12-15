@@ -6,7 +6,9 @@
 #include <application-settings/windows/SettingsMainWindow.hpp>
 #include <application-settings/windows/advanced/AdvancedOptionsWindow.hpp>
 #include <application-settings/windows/advanced/InformationWindow.hpp>
+#include <application-settings/windows/advanced/TextImageColorWindow.hpp>
 #include <application-settings/windows/advanced/UITestWindow.hpp>
+#include <application-settings/windows/advanced/CPUModeTestWindow.hpp>
 #include <application-settings/windows/advanced/ColorTestWindow.hpp>
 #include <application-settings/windows/advanced/StatusBarImageTypeWindow.hpp>
 #include <application-settings/windows/bluetooth/BluetoothWindow.hpp>
@@ -224,6 +226,8 @@ namespace app
         });
 
         connect(typeid(::message::bluetooth::RequestPasskey), [&](sys::Message *msg) {
+            auto m                               = dynamic_cast<::message::bluetooth::RequestPasskey *>(msg);
+            bluetoothSettingsModel->pinRequestor = m->getDevice();
             switchWindow(gui::window::name::bluetooth_check_passkey);
             return sys::MessageNone{};
         });
@@ -367,6 +371,9 @@ namespace app
         windowsFactory.attach(gui::window::name::ui_test, [](ApplicationCommon *app, const std::string &name) {
             return std::make_unique<gui::UiTestWindow>(app);
         });
+        windowsFactory.attach(gui::window::name::cpu_test_window, [](ApplicationCommon *app, const std::string &name) {
+            return std::make_unique<gui::CPUModeTestWindow>(app);
+        });
         windowsFactory.attach(gui::window::name::color_test_window,
                               [](ApplicationCommon *app, const std::string &name) {
                                   return std::make_unique<gui::ColorTestWindow>(app);
@@ -375,7 +382,9 @@ namespace app
                               [](ApplicationCommon *app, const std::string &name) {
                                   return std::make_unique<gui::StatusBarImageTypeWindow>(app);
                               });
-
+        windowsFactory.attach(gui::window::name::text_image_color, [](ApplicationCommon *app, const std::string &name) {
+            return std::make_unique<gui::TextImageColorWindow>(app);
+        });
         // Bluetooth
         windowsFactory.attach(gui::window::name::bluetooth, [](ApplicationCommon *app, const std::string &name) {
             return std::make_unique<gui::BluetoothWindow>(app);
@@ -389,10 +398,10 @@ namespace app
         windowsFactory.attach(gui::window::name::phone_name, [this](ApplicationCommon *app, const std::string &name) {
             return std::make_unique<gui::PhoneNameWindow>(app, bluetoothSettingsModel);
         });
-        windowsFactory.attach(gui::window::name::bluetooth_check_passkey,
-                              [](ApplicationCommon *app, const std::string &name) {
-                                  return std::make_unique<gui::BluetoothCheckPasskeyWindow>(app);
-                              });
+        windowsFactory.attach(
+            gui::window::name::bluetooth_check_passkey, [this](ApplicationCommon *app, const std::string &name) {
+                return std::make_unique<gui::BluetoothCheckPasskeyWindow>(app, bluetoothSettingsModel);
+            });
 
         // Network
         windowsFactory.attach(gui::window::name::network, [](ApplicationCommon *app, const std::string &name) {
@@ -434,7 +443,7 @@ namespace app
             return std::make_unique<gui::FontSizeWindow>(app);
         });
         windowsFactory.attach(gui::window::name::wallpaper, [](ApplicationCommon *app, const std::string &name) {
-            return std::make_unique<gui::WallpaperWindow>(app);
+            return std::make_unique<gui::WallpaperWindow>(app, static_cast<ApplicationSettings *>(app));
         });
         windowsFactory.attach(gui::window::name::quotes, [](ApplicationCommon *app, const std::string &name) {
             return std::make_unique<gui::QuotesMainWindow>(app);
@@ -683,6 +692,18 @@ namespace app
         settings->setValue(::settings::KeypadLight::state,
                            std::to_string(static_cast<int>(keypadLightState)),
                            ::settings::SettingsScope::Global);
+    }
+
+    auto ApplicationSettings::getWallpaperOption() -> gui::WallpaperOption
+    {
+        return static_cast<gui::WallpaperOption>(utils::getNumericValue<int>(
+            settings->getValue(::settings::Wallpaper::option, ::settings::SettingsScope::Global)));
+    }
+
+    void ApplicationSettings::setWallpaperOption(gui::WallpaperOption option)
+    {
+        settings->setValue(
+            ::settings::Wallpaper::option, std::to_string(static_cast<int>(option)), ::settings::SettingsScope::Global);
     }
 
     auto ApplicationSettings::getNotificationsWhenLocked() const noexcept -> bool

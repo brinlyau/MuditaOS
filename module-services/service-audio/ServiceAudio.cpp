@@ -27,7 +27,7 @@
 
 using namespace audio;
 
-inline constexpr auto audioServiceStackSize = 1024 * 4;
+inline constexpr auto audioServiceStackSize = 1024 * 8;
 
 static constexpr auto defaultVolumeHigh              = "10";
 static constexpr auto defaultVolumeLow               = "5";
@@ -683,7 +683,7 @@ sys::MessagePointer ServiceAudio::DataReceivedHandler(sys::DataMessage *msgl, sy
     }
 
     if (const auto curIsBusy = IsBusy(); isBusy != curIsBusy) {
-        curIsBusy ? cpuSentinel->HoldMinimumFrequency(bsp::CpuFrequencyHz::Level_6)
+        curIsBusy ? cpuSentinel->HoldMinimumFrequency(bsp::CpuFrequencyMHz::Level_6)
                   : cpuSentinel->ReleaseMinimumFrequency();
     }
 

@@ -18,6 +18,7 @@ namespace app::home_screen
 {
 
     inline constexpr auto defaultAlarmRingingTime = std::chrono::minutes(5);
+    inline constexpr auto defaultAlarmSetTime     = std::chrono::seconds{10};
 
     class AbstractView;
     class AbstractPresenter;
@@ -34,6 +35,7 @@ namespace app::home_screen
         virtual bool handleTimeUpdateEvent()                             = 0;
         virtual bool handleAlarmRingingEvent()                           = 0;
         virtual bool handleAlarmModelReady()                             = 0;
+        virtual bool handleBatteryStatus()                               = 0;
         virtual bool isSnoozeAllowed()                                   = 0;
         virtual void snooze(bool ctrl)                                   = 0;
     };
@@ -55,6 +57,7 @@ namespace app::home_screen
         bool handleTimeUpdateEvent() override;
         bool handleAlarmRingingEvent() override;
         bool handleAlarmModelReady() override;
+        bool handleBatteryStatus() override;
         bool isSnoozeAllowed() override;
         void snooze(bool ctrl) override;
 

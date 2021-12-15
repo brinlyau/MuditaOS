@@ -46,10 +46,10 @@ namespace bsp
             pwm->Stop(pwmChannel);
         }
 
-        void updateClockFrequency(CpuFrequencyHz newFrequency)
+        void updateClockFrequency(CpuFrequencyMHz newFrequency)
         {
             if (pwm) {
-                pwm->UpdateClockFrequency(static_cast<std::uint32_t>(newFrequency));
+                pwm->UpdateClockFrequency(newFrequency);
             }
         }
 

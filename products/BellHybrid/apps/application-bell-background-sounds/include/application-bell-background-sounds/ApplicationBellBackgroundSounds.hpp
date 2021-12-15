@@ -5,6 +5,7 @@
 
 #include <Application.hpp>
 #include <common/models/AbstractAudioModel.hpp>
+#include <purefs/filesystem_paths.hpp>
 
 namespace gui::window::name
 {
@@ -26,6 +27,7 @@ namespace app
         std::unique_ptr<AbstractAudioModel> audioModel;
         std::unique_ptr<bgSounds::BGSoundsPlayer> player;
 
+        void onStop() override;
         sys::MessagePointer handleSwitchWindow(sys::Message *msgl) override;
 
       public:
